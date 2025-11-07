@@ -25,7 +25,7 @@ export function useAudioAnalyzer(): AudioData {
         audioContextRef.current = new AudioContext();
         analyserRef.current = audioContextRef.current.createAnalyser();
         analyserRef.current.fftSize = 64; // 32 frequency bins
-        analyserRef.current.smoothingTimeConstant = 0.8;
+        analyserRef.current.smoothingTimeConstant = 0.3; // Lower = faster response
 
         // Connect microphone to analyzer
         const source = audioContextRef.current.createMediaStreamSource(stream);

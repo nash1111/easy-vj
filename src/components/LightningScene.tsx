@@ -38,13 +38,13 @@ export function LightningScene() {
     const scene = new Scene(engine);
     scene.clearColor = new Color3(0, 0, 0).toColor4();
 
-    // Camera setup
+    // Camera setup - positioned to view circular formation from above at angle
     const camera = new ArcRotateCamera(
       'camera',
       -Math.PI / 2,
-      Math.PI / 3,
-      20,
-      Vector3.Zero(),
+      Math.PI / 4, // More overhead view
+      25, // Further out to see full circle
+      new Vector3(0, 2, 0), // Look slightly above ground
       scene
     );
     camera.attachControl(canvas, true);
@@ -57,11 +57,10 @@ export function LightningScene() {
     const glowLayer = new GlowLayer('glow', scene);
     glowLayer.intensity = 0.5;
 
-    // Create spectrum bars
+    // Create spectrum bars in circular formation
     const bars: Mesh[] = [];
     const barCount = 32;
-    const barSpacing = 0.5;
-    const startX = -(barCount * barSpacing) / 2;
+    const circleRadius = 8;
 
     for (let i = 0; i < barCount; i++) {
       const bar = MeshBuilder.CreateBox(
@@ -69,12 +68,24 @@ export function LightningScene() {
         { width: 0.4, height: 1, depth: 0.4 },
         scene
       );
-      bar.position.x = startX + i * barSpacing;
+
+      // Calculate position on circle
+      const angle = (i / barCount) * Math.PI * 2;
+      bar.position.x = Math.cos(angle) * circleRadius;
+      bar.position.z = Math.sin(angle) * circleRadius;
       bar.position.y = 0.5;
-      bar.position.z = -5;
+
+      // Rotate bar to face center
+      bar.rotation.y = -angle;
 
       const material = new StandardMaterial(`barMat${i}`, scene);
-      material.emissiveColor = new Color3(0, 0.5, 1);
+      // Create rainbow gradient: red -> orange -> yellow -> green -> cyan -> blue -> purple
+      const hue = i / barCount;
+      material.emissiveColor = new Color3(
+        Math.sin(hue * Math.PI * 2) * 0.5 + 0.5,
+        Math.sin((hue + 0.33) * Math.PI * 2) * 0.5 + 0.5,
+        Math.sin((hue + 0.66) * Math.PI * 2) * 0.5 + 0.5
+      );
       bar.material = material;
 
       bars.push(bar);
@@ -112,25 +123,24 @@ export function LightningScene() {
       return points;
     }
 
+    // Debug counter
+    let debugCounter = 0;
+
     // Animation loop
     scene.registerBeforeRender(() => {
       const currentFreqData = freqDataRef.current;
       const currentBassLevel = bassLevelRef.current;
 
+      // Debug log every 60 frames (~1 second)
+      if (debugCounter++ % 60 === 0) {
+        console.log('Render loop - freqData length:', currentFreqData.length, 'first value:', currentFreqData[0], 'bassLevel:', currentBassLevel.toFixed(3));
+      }
+
       // Update spectrum bars based on frequency data
       for (let i = 0; i < Math.min(bars.length, currentFreqData.length); i++) {
-        const height = (currentFreqData[i] / 255) * 5 + 0.5;
+        const height = (currentFreqData[i] / 255) * 8 + 0.5; // Increased scale for better visibility
         bars[i].scaling.y = height;
         bars[i].position.y = height / 2;
-
-        // Update bar color based on frequency
-        const material = bars[i].material as StandardMaterial;
-        const hue = (i / barCount) * 0.6; // 0 to 0.6 (blue to cyan to green)
-        material.emissiveColor = new Color3(
-          Math.sin(hue * Math.PI) * 0.5,
-          Math.cos(hue * Math.PI) * 0.5 + 0.5,
-          1 - hue
-        );
       }
 
       // Update glow intensity based on bass
